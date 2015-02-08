@@ -1,0 +1,9 @@
+<?php
+
+require_once 'config.inc.php';
+require_once 'application.inc.php';
+require_once 'request.class.php';
+
+$api = new Application(str_replace(dirname($_SERVER['SCRIPT_NAME']) . '/', '', $_SERVER['REQUEST_URI']));
+
+?>
