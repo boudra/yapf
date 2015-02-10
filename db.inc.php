@@ -26,10 +26,32 @@ class Database {
 
     }
 
-    public function query() {
-        return new Query($this->db);
+    public function query($table = null, $alias = null) {
+        return ($table === null) ? new Query($this->db) : new Query($table, $alias);
     }
 
+    public function table($table, $alias = null) {
+        return (new Query($this->db))->table($table, $alias);
+    }
+
+    public function select($table, $alias = null) {
+        return (new Query($this->db))->select($table, $alias);
+    }
+
+    public function delete($table, $alias = null) {
+        return (new Query($this->db))->select($table, $alias);
+    }
+
+}
+
+class Join {
+    private $query = null;
+    public function __construct(Query $query) {
+        $this->query($query);
+    }
+    public function on() {
+        return $this->query;
+    }
 }
 
 class Query {
@@ -39,61 +61,66 @@ class Query {
 
     private $table;
     private $join = '';
-    private $where_params = [];
     private $params = [];
     private $select;
     private $where = '';
     private $limit = '';
     private $order = '';
 
-    public function __construct($db) {
+    private $where_params = [];
+    private $tables = [];
+    private $last_table = null;
+
+    private $fields = [];
+
+    private $action = 'SELECT';
+
+    private $joins = [];
+    private $last_join = null;
+
+    private $values = [];
+    private $prepare_values = [];
+
+    public function __construct(PDO $db) {
         $this->db = $db;
         return $this;
     }
 
-    public function select($table, $params) {
-        $this->action = 'SELECT ';
-        $this->table = $table;
-        $field_list = [];
-        foreach($params as $table => $fields) {
-            foreach($fields as $alias => $field)
-            {
-                if(strrpos($field, ':') !== false)
-                    $sql = str_replace(':', '', $field);
-                else
-                    $sql = "$table.$field";
-
-                if(is_string($alias)) $sql.= " AS $alias";
-                $field_list[] = $sql;
-            }
-        }
-        $this->action .= implode(', ', $field_list) . ' ';
-        $this->action .= "FROM {$this->table} ";
+    public function table($name, $alias = null) {
+        if($alias === null) $alias = $name;
+        $this->tables[$alias] = $name;
+        $this->last_table = $alias;
         return $this;
     }
 
-    public function update($table, $params, $values) {
-        $this->action = "UPDATE {$table} SET ";
-        $this->table = $table;
-        $field_list = [];
-        foreach($params as $table => $fields) {
-            foreach($fields as $field)
-            {
-                if(!array_key_exists($field, $values)) continue;
+    public function select($name, $alias = null) {
+        $this->action = 'SELECT';
+        return $this->table($name, $alias);
+    }
 
-                if(strrpos($field, ':') !== false)
-                    $sql = str_replace(':', '', $field);
-                else
-                    $sql = "$table.$field";
+    public function delete($name, $alias = null) {
+        $this->action = 'DELETE';
+        return $this->table($name, $alias);
+    }
 
-                $sql .= " = :{$field}";
+    /* TODO */
+    public function tables() {
+        return $this;
+    }
 
-                $field_list[] = $sql;
-                $this->params[$field] = $values[$field];
+    public function fields() {
 
-            }
+        $fields = func_get_args();
+
+        foreach ($fields as $field) {
+            $this->field($field);
         }
-        $this->action .= implode(', ', $field_list) . ' ';
+
+        return $this;
+    }
+
+    public function field($field) {
+        $this->fields[] = $field;
         return $this;
     }
 
@@ -103,13 +130,69 @@ class Query {
         return $this;
     }
 
-    public function inner_join($table_a, $field_a, $table_b = null, $field_b = null) {
-        if($table_b == null) $table_b = $this->table;
-        if($field_b == null) $field_b = $field_a;
+    public function inner_join($name, $alias = null) {
+        $this->add_join('INNER JOIN', $name, $alias);
+        return $this;
+    }
 
-        $this->join .= "INNER JOIN $table_a ON ";
-        $this->join .= "$table_a.$field_a = $table_b.$field_b ";
+    private function add_join($type, $name, $alias = null) {
 
+        if($alias === null) $alias = $name;
+
+        $this->joins[$alias] = [
+            'right' => $name,
+            'left' => $this->last_table,
+            'type' => $type,
+            'rules' => []
+        ];
+
+        $this->last_join = $alias;
+        
+    }
+
+    private function add_join_rule($args, $type = null) {
+        
+        $nargs = count($args);
+        $join = &$this->joins[$this->last_join];
+
+        if($nargs == 1) {
+
+            $rule = [
+                'a' => $args[0],
+                'b' => $args[0],
+                'cmp' => '='
+            ];
+
+        } else if($nargs == 2) {
+
+            $rule = [
+                'a' => $args[0],
+                'b' => $args[1],
+                'cmp' => '='
+            ];
+
+        } else if($nargs == 3) {
+
+            $rule = [
+                'a' => $args[0],
+                'b' => $args[3],
+                'cmp' => $args[2]
+            ];
+
+        }
+
+        $rule['concat'] = $type;
+        $join['rules'][] = $rule;
+
+    }
+
+    public function on() {
+        $this->add_join_rule(func_get_args());
+        return $this;
+    }
+
+    public function maybe() {
+        $this->add_join_rule(func_get_args(), 'OR');
         return $this;
     }
 
@@ -120,13 +203,12 @@ class Query {
             'value' => $value
         ];
 
+        return $this;
+
     }
 
     public function where_params($params)
     {
-        $this->where_params = array_merge($this->where_params, $params);
-
-        if(empty($this->where)) $this->where =  'WHERE 1 ';
 
         foreach($params as $name => $value) {
 
@@ -165,14 +247,78 @@ class Query {
         return $this;
     }
 
-    public function build() {
-        $this->sql = trim($this->action . $this->join . $this->where . $this->order . $this->limit) . ';';
+    private function build_where() {
+        $where_rules = [];
+
+        foreach($this->where_params as $name => $where) {
+            $where_rules[] = "{$name} {$where['compare']} :{$name}";
+            $this->prepare_values[$name] = $where['value'];
+        }
+
+        $where_sql = implode("\nAND ", $where_rules);
+
+        return trim($where_sql);
     }
 
-    public function execute() {
-        $this->build();
+    private function build_from() {
+        $from = [];
+
+        foreach ($this->tables as $alias => $table) {
+            $name = $table;
+            if($table != $alias) $name .= ' AS ' . $alias;
+            $from[] = $name;
+        }
+
+        $joins = [];
+
+        foreach($this->joins as $alias => $join) {
+            $join_rule_sql = $join['type'] . ' ' . $join['right'] . ' AS ' . $alias . "\nON ";
+            foreach($join['rules'] as $rule) {
+                if($rule['concat'] !== null) $join_rule_sql .= "{$rule['concat']} ";
+                $join_rule_sql .= "{$join['left']}.{$rule['a']} {$rule['cmp']} {$alias}.{$rule['b']}\n";
+            }
+            $joins[] = $join_rule_sql;
+        }
+
+        return "\n" . sprintf("FROM %s\n", implode(', ', $from)) . implode(', ', $joins);
+    }
+
+    public function build() {
+
+        $sql = '';
+
+        switch($this->action) {
+
+        case 'SELECT': {
+
+            $sql = sprintf("SELECT %s ", implode(', ', $this->fields));
+
+            $from_sql  = $this->build_from();
+            $where_sql = $this->build_where();
+
+            $sql .= $from_sql;
+
+            if(strlen($where_sql) > 0)
+                $sql .= sprintf("WHERE %s", $where_sql);
+
+            $sql .= ";";
+
+            break;
+
+        }
+            
+        };
+
+        $this->sql = $sql;
+
+        return $this;
+    }
+
+    public function fetch() {
+        if(strlen($this->sql) === 0) $this->build();
+        echo "EXEC: {$this->sql}\n";
         $query = $this->db->prepare($this->sql);
-        $query->execute(array_merge($this->where_params, $this->params));
+        $query->execute($this->prepare_values);
         return $query->fetchAll(PDO::FETCH_ASSOC);
     }
 

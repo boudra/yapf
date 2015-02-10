@@ -94,8 +94,23 @@ class Taxo extends Controller {
     public function delete($id, Request $request, Database $db)
     {
         var_dump($request->get_all());
-        $db->query()->where_params($request->get_all());
-        return response('ok');
+
+        $query = $db->select('taxo','tx')
+               ->inner_join('autor', 'at')
+               ->on('autor_id')
+               ->maybe('taxo_nom', 'autor_nom')
+               ->fields('tx.taxo_id as id', 'at.autor_nom')
+               ->where_params($request->get_all())
+               ->build();
+
+        $res = $db->table('taxo')
+             ->fields('taxo_id', 'autor.nom')
+             ->inner_join('autor')
+             ->on('autor_id')
+             ->where('taxo_id', '<',  25)
+             ->fetch();
+
+        return response('ok')->json($res);
     }
 
 };

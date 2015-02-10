@@ -10,4 +10,8 @@ function response($status = 200, $data = null) {
     return new Response($status, $data);
 }
 
+function query($table, $alias = null) {
+    return Service::get('Database')->query()->table($table, $alias);
+}
+
 ?>

@@ -89,7 +89,7 @@ class Application {
 
         if($response === null)
         {
-            $this->response = response('Invalid action.', 'error')->type('json');
+            $this->response = response('error')->json('invalid action');
         }
         else
         {
@@ -100,24 +100,8 @@ class Application {
 
     }
 
-    public function respond($status, $msg)
-    {
-        $this->response = [
-            'status' => $status,
-            'result' => $msg
-        ];
-    }
-
     public function finish() {
         $this->response->respond();
-    }
-
-    private function encode_json($data)
-    {
-        $string =  json_encode($data, JSON_PRETTY_PRINT);
-        $replaced_string = preg_replace("/\\\\u(\w{4})/", "&#x$1;", $string);
-        $unicode_string = mb_convert_encoding($replaced_string, 'UTF-8', 'HTML-ENTITIES');
-        return $unicode_string;
     }
 
 };
