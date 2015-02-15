@@ -6,6 +6,15 @@ function fix_types(&$arr) {
     }, $arr);
 }
 
+function rename_keys($arr, $keys) {
+    foreach($arr as $k => $v) {
+        if(!isset($keys[$k])) continue;
+        $arr[$keys[$k]] = $v;
+        unset($arr[$k]);
+    }
+    return $arr;
+}
+
 function response($status = 200, $data = null) {
     return new Response($status, $data);
 }

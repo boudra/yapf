@@ -7,51 +7,73 @@ class Taxo extends Controller {
         $items_page = $request->get('items_per_page', 30);
         $pagina = $request->get('page', 1);
 
-        $param_type = [
-            'nom' => 'like'
-        ];
-
         $params = $request->only('nom', 'taxo_id', 'autor_id', 'clasificacio_id');
 
-        $taxons = $db->query()->select('taxo', [
-            'taxo' => ['nom', 'taxo_id', 'observacions'],
-            'clasificacio' => ['clasificacio_nom' => 'nom', 'clasificacio_id'],
-            'autor' => ['autor_nom' => 'nom', 'autor_id']
-        ]
-        )->inner_join('clasificacio', 'clasificacio_id')
-                ->inner_join('autor', 'autor_id')
-                ->where($params, $param_type)
-                ->order_by('taxo.nom', 'ASC')
-                ->execute();
+        $params = rename_keys($params, [
+            'nom' => 't.nom',
+            'taxo_id' => 't.taxo_id',
+            'autor_id' => 't.autor_id',
+            'clasificacio_id' => 't.clasificacio_id']
+        );
+
+        $taxons = $db->select('taxo', 't')
+                ->inner_join('autor', 'a')->on('autor_id')
+                ->inner_join('clasificacio', 'c')->on('clasificacio_id')
+                ->fields('t.nom', 't.taxo_id', 't.observacions',
+                         'c.nom as clasificacio_nom', 'c.clasificacio_id',
+                         'a.nom as autor_nom', 'a.autor_id')
+                ->where_params($params)
+                ->fetch();
+
 
         return response('ok')->json([
-            'sql'=> $res->sql,
-            'result'=> array_slice($taxons, $items_page * ($pagina - 1), $items_page),
+            'items_per_page'=> $items_page,
             'items'=> count($taxons),
-            'items_per_page'=> $items_page
+            'result'=> array_slice($taxons, $items_page * ($pagina - 1), $items_page)
         ]);
 
     }
 
-    public function get($id)
+    public function get($taxo_id, Database $db)
     {
+        $taxo = $db->select('taxo', 't')
+              ->inner_join('autor', 'a')->on('autor_id')
+              ->inner_join('clasificacio', 'c')->on('clasificacio_id')
+              ->fields('t.nom', 't.taxo_id', 't.observacions',
+                       'c.nom as clasificacio_nom', 'c.clasificacio_id',
+                       'a.nom as autor_nom', 'a.autor_id')
+              ->where('t.taxo_id', '=', $taxo_id)
+              ->fetch()[0];
 
-        $sql = 'SELECT t.nom, t.taxo_id, t.observacions, t.grup,
-			c.clasificacio_id, c.nom AS clasificacio_nom,
-			a.autor_id, a.nom AS autor_nom
-			FROM taxo t
-			INNER JOIN clasificacio c ON
-			c.clasificacio_id = t.clasificacio_id
-			INNER JOIN autor a ON
-			a.autor_id = t.autor_id
-			WHERE t.taxo_id = :id;';
+        $taxo['images'] = [];
 
-        $query = $this->db->prepare($sql);
-        $query->execute(array('id' => $id));
+        $name = urlencode($taxo['nom']);
+        $search = file_get_contents("http://eol.org/api/search/1.0.json?q=$name&page=1&exact=true");
+        $search = json_decode($search);
 
-        return response('ok')->json([
-            'result' => $query->fetch(PDO::FETCH_ASSOC)
-        ]);
+        if($search->totalResults > 0) {
+
+            $result = $search->results[0];
+            $object = file_get_contents("http://eol.org/api/pages/1.0/{$result->id}.json?images=5&videos=0&sounds=0&maps=0&text=0&iucn=true&subjects=&licenses=all&details=true&common_names=false&synonyms=false&references=false&vetted=0&cache_ttl=");
+            $object = json_decode($object);
+
+            $images = $object->dataObjects;
+            $count = 0;
+
+            $dir = ROOT_DIR . "/data/taxons/{$taxo_id}";
+            if(!is_dir($dir)) mkdir($dir, 0755, true);
+            
+            foreach($images as $image_object) {
+                $count++;
+                $image = new Image($image_object->mediaURL);
+                $image->resize_height(300);
+                $image->save("{$dir}/{$count}.jpg", IMAGETYPE_JPEG);
+                $taxo['images'][] = $count . ".jpg";
+            }
+
+        }
+
+        return response('ok')->json($taxo);
 
     }
 
@@ -91,7 +113,7 @@ class Taxo extends Controller {
         return $res;
     }
 
-    public function delete($id, Request $request, Database $db)
+    public function delete($taxo_id, Request $request, Database $db)
     {
         var_dump($request->get_all());
 

@@ -57,7 +57,7 @@ class Request
         $params = [];
         foreach($args as $arg) {
             if($this->has($arg)) {
-                $params[$arg] = $this->params[$arg];
+                $params[$arg] = $this->get($arg);
             }
         }
         return $params;

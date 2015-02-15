@@ -59,14 +59,6 @@ class Query {
     public $db = null;
     public $sql = '';
 
-    private $table;
-    private $join = '';
-    private $params = [];
-    private $select;
-    private $where = '';
-    private $limit = '';
-    private $order = '';
-
     private $where_params = [];
     private $tables = [];
     private $last_table = null;
@@ -80,6 +72,8 @@ class Query {
 
     private $values = [];
     private $prepare_values = [];
+    private $limit = [];
+    private $order = [];
 
     public function __construct(PDO $db) {
         $this->db = $db;
@@ -213,14 +207,14 @@ class Query {
         foreach($params as $name => $value) {
 
             $matches = null;
-            preg_match("/^(?<cmp>[~!<>][=]*)*(?<value>.*)$/", $value, $matches);
+            preg_match("/^(?<cmp>[~!<>=]{1,2})*(?<value>.*)$/", $value, $matches);
 
             $compare = '=';
 
             switch($matches['cmp']) {
 
-            case '~':  $compare = 'NOT LIKE'; break;
-            case '~=': $compare = 'LIKE'; break;
+            case '!~': $compare = 'NOT LIKE'; break;
+            case '~':  $compare = 'LIKE'; break;
             case '!':  $compare = '<>'; break;
             case '<':  $compare = '<'; break;
             case '>':  $compare = '>'; break;
@@ -251,8 +245,10 @@ class Query {
         $where_rules = [];
 
         foreach($this->where_params as $name => $where) {
-            $where_rules[] = "{$name} {$where['compare']} :{$name}";
-            $this->prepare_values[$name] = $where['value'];
+            $is_value = ($where['value'][0] != "`");
+            $key = str_replace('.', '_', $name);
+            $where_rules[] = "{$name} {$where['compare']} " . ($is_value ? ":{$key}" : trim($where['value'], "`"));
+            if($is_value) $this->prepare_values[$key] = $where['value'];
         }
 
         $where_sql = implode("\nAND ", $where_rules);
@@ -280,7 +276,25 @@ class Query {
             $joins[] = $join_rule_sql;
         }
 
-        return "\n" . sprintf("FROM %s\n", implode(', ', $from)) . implode(', ', $joins);
+        return "\n" . sprintf("FROM %s\n", implode(', ', $from)) . implode('', $joins);
+    }
+
+    private function build_order() {
+
+        $fields = [];
+
+        foreach($this->order as $order) {
+            $fields[] = "{$order['field']} {$order['mode']}"; 
+        }
+
+        return count($fields) > 0 ? sprintf("ORDER BY %s\n", implode(', ', $fields)) : '';
+
+    }
+
+    private function build_limit() {
+        return count($this->limit) == 2 ?
+                                   "LIMIT {$this->limit[0]} {$this->limit[1]}" :
+                                   "";
     }
 
     public function build() {
@@ -299,7 +313,10 @@ class Query {
             $sql .= $from_sql;
 
             if(strlen($where_sql) > 0)
-                $sql .= sprintf("WHERE %s", $where_sql);
+                $sql .= sprintf("WHERE %s\n", $where_sql);
+
+            $sql .= $this->build_order();
+            $sql .= $this->build_limit();
 
             $sql .= ";";
 
@@ -316,7 +333,8 @@ class Query {
 
     public function fetch() {
         if(strlen($this->sql) === 0) $this->build();
-        echo "EXEC: {$this->sql}\n";
+        // echo "EXEC: {$this->sql}\n";
+        // echo "WITH: "; print_r($this->prepare_values); echo "\n";
         $query = $this->db->prepare($this->sql);
         $query->execute($this->prepare_values);
         return $query->fetchAll(PDO::FETCH_ASSOC);

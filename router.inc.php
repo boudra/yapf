@@ -10,7 +10,27 @@
 			'str' => '[A-z0-9-_]+'
 		];
 
+        public function __construct() {}
+
         public function resource($name, $controller) {
+
+            $names = explode('.', $name);
+
+            // [0] => "taxo", [1] => "sinonims"
+
+            $last = array_pop($names);
+
+            $base = "";
+
+            foreach($names as $name) {
+                $base .= "{$name}/{{$name}_id}/";
+            }
+
+            $this->add_resource($base, $last, $controller);
+
+        }
+
+        private function add_resource($base, $name, $controller) {
 
             // index  => GET /resource/
             // get    => GET /resource/{id:int}
@@ -18,11 +38,11 @@
             // create => POST /resource/ && $params
             // delete => DELETE /resource/{id:int}
 
-            $this->get("{$name}", "{$controller}.index");
-            $this->get("{$name}/{id}", "{$controller}.get");
-            $this->put("{$name}/{id}", "{$controller}.update");
-            $this->post("{$name}", "{$controller}.create");
-            $this->delete("{$name}/{id}", "{$controller}.delete");
+            $this->get("{$base}{$name}", "{$controller}.index");
+            $this->get("{$base}{$name}/{{$name}_id}", "{$controller}.get");
+            $this->put("{$base}{$name}/{{$name}_id}", "{$controller}.update");
+            $this->post("{$base}{$name}", "{$controller}.create");
+            $this->delete("{$base}{$name}/{{$name}_id}", "{$controller}.delete");
 
         }
 		
@@ -93,6 +113,7 @@
 			$response = null;
 
 			foreach($routes as $route) {
+
 				$values = [];
 				$matches = null;
 				$nmatches = preg_match($route['regexp'], $request->path(), $matches);
@@ -132,31 +153,18 @@
 
 				$action_method = $controller_class->getMethod($action_methods[$index]);
 
-				$constructor = $controller_class->getConstructor();
-
-				$arguments = [];
-
-				if($constructor !== null) {
-
-					$parameters = $constructor->getParameters();
-
-					foreach($parameters as $param) {
-						$arguments[] = Services::get($param->getClass()->name);
-				 	}
-
-				}
-
-				$controller = $controller_class->newInstanceArgs($arguments);
+                $controller = Services::inject($controller_class);
 
 				$parameters = $action_method->getParameters();
-				$arguments = [];
 
+				$arguments = [];
 
 				foreach($parameters as $param) {
 					$arguments[] = isset($values[$param->getName()]) ?
 									$values[$param->getName()] :
                                  Services::get($param->getClass()->name);
 				}
+
 
 				fix_types($arguments);
 

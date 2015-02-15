@@ -3,38 +3,35 @@
 class Clasificacio extends Controller {
 
 
-   public function __consturctor($db)
-   {
-      parent::__constructor($db);
-   }
+    public function index(Request $rq, Database $db)
+    {
+        $items_page = $rq->get('items_per_page', 30);
+        $pagina = $rq->get('page', 1);
 
-   public function get_clasificacions($params, $pagina = 1)
-   {
-			$items_page = 30;
+        $params = $rq->only('nom', 'clasificacio_id');
 
-			$param_type = [
-				'nom' => 'like'
-			];
+        $params = rename_keys($params, [
+            'nom' => 'c.nom',
+            'clasificacio_id' => 'c.clasificacio_id'
+        ]);
 
-	   $res = new Query($this->db);
-	   $clasificacions = $res->select('clasificacio', [
-		   'clasificacio' => ['*'],
-		   'clasificacio_tipus' => ['clasificacio_tipus_nom' => 'nom'],
-		   ])
-	   ->inner_join('clasificacio_tipus', 'clasificacio_tipus_id', 'clasificacio', 'tipus')
-	   ->where($params, $param_type)
-       ->order_by('clasificacio.nom', 'ASC')
-	   ->execute();
+        $query = $db->select('clasificacio', 'c')
+               ->inner_join('clasificacio_tipus', 'ct')
+               ->on('clasificacio_tipus_id')
+               ->fields('c.*', 'ct.nom as clasificacio_tipus_nom')
+               ->where_params($params)
+               ->order_by('c.nom', 'ASC');
 
-       return [
-           'sql' => $res->sql,
-           'status' => 'ok',
-		   'items' => intval(count($clasificacions)),
-		   'tems_per_page' => intval($items_page),
-           'result' => array_slice($clasificacions, $items_page * ($pagina - 1), $items_page)
-       ];
+        $clasificacions = $query->fetch();
 
-   }
+        return response('ok')->json([
+            'sql'=> $query->sql,
+            'items_per_page'=> $items_page,
+            'items'=> count($clasificacions),
+            'result'=> array_slice($clasificacions, $items_page * ($pagina - 1), $items_page)
+        ]);
+
+    }
 
 };
 

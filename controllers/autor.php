@@ -2,28 +2,30 @@
 
 class Autor extends Controller {
 
-    public function get_autors($params, $pagina = 0)
+    public function index(Request $rq, Database $db)
     {
-        $items_page = 30;
+        $items_page = $rq->get('items_per_page', 30);
+        $pagina = $rq->get('page', 1);
 
-        $param_type = [ 'nom' => 'like' ];
+        $params = $rq->only('nom', 'autor_id');
 
-        $res = new Query($this->db);
-        $autors = $res ->select('autor', [
-                    'autor' => ['autor_id', 'nom', 'nom_hist']
-                ]
-            )
-            ->where($params, $param_type)
-            ->execute();
+        $params = rename_keys($params, [
+            'nom' => 'a.nom',
+            'autor_id' => 'a.autor_id'
+        ]);
 
-        $this->response['sql'] = $res->sql;
-        $this->response['result'] = $pagina > 0
-            ? array_slice($autors, $items_page * ($pagina - 1), $items_page) :
-                $autors;
+        $autors = $db->select('autor', 'a')
+                ->fields('a.autor_id', 'a.nom', 'a.nom_hist')
+                ->where_params($params)
+                ->order_by('a.nom', 'ASC')
+                ->fetch();
 
-        $this->response['items'] = intval(count($autors));
-        $this->response['tems_per_page'] = intval($items_page);
-        $this->response['status'] = 'ok';
+        return response('ok')->json([
+            'items_per_page'=> $items_page,
+            'items'=> count($autors),
+            'result'=> array_slice($autors, $items_page * ($pagina - 1), $items_page)
+        ]);
+
     }
 
     public function get_autor($params, $id) 
