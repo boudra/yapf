@@ -30,16 +30,13 @@ class Response {
         header("Content-type: {$this->content_type}; charset={$this->charset}");
         http_response_code($this->status_code);
 
-        switch($this->content_type) {
-        case 'application/json':
-            $this->plain_response = $this->encode_json($this->data);
-            break;
-        default:
-            $this->plain_response = &$this->data;
+        if($this->content_type === 'application/json') {
+            echo $this->encode_json($this->data);
+	} else if(substr($this->content_type, 0, 5) === 'image') {
+	    readfile($this->data);
+	} else {
+            echo $this->data;
         }
-
-        echo $this->plain_response;
-
     }
 
     public function type($type) {
@@ -58,6 +55,13 @@ class Response {
 
     public function json($data) {
         $this->type('json');
+        $this->data = $data;
+        return $this;
+    }
+
+    public function image($data) {
+	$mime = getimagesize($data)['mime']; 
+        $this->type($mime);
         $this->data = $data;
         return $this;
     }

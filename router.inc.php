@@ -1,188 +1,188 @@
 <?php
 
-	class Router
-	{
+class Router
+{
 
-		private $routes = [];
+    private $routes = [];
 
-		protected static $types = [
-			'int' => '\d+',
-			'str' => '[A-z0-9-_]+'
-		];
+    protected static $types = [
+	'int' => '\d+',
+	'str' => '[A-z0-9-_]+'
+    ];
 
-        public function __construct() {}
+    public function __construct() {}
 
-        public function resource($name, $controller) {
+    public function resource($name, $controller) {
 
-            $names = explode('.', $name);
+        $names = explode('.', $name);
 
-            // [0] => "taxo", [1] => "sinonims"
+        // [0] => "taxo", [1] => "sinonims"
 
-            $last = array_pop($names);
+        $last = array_pop($names);
 
-            $base = "";
+        $base = "";
 
-            foreach($names as $name) {
-                $base .= "{$name}/{{$name}_id}/";
-            }
-
-            $this->add_resource($base, $last, $controller);
-
+        foreach($names as $name) {
+            $base .= "{$name}/{{$name}_id}/";
         }
 
-        private function add_resource($base, $name, $controller) {
+        $this->add_resource($base, $last, $controller);
 
-            // index  => GET /resource/
-            // get    => GET /resource/{id:int}
-            // update => PUT /resource/{id:int} && $params
-            // create => POST /resource/ && $params
-            // delete => DELETE /resource/{id:int}
+    }
 
-            $this->get("{$base}{$name}", "{$controller}.index");
-            $this->get("{$base}{$name}/{{$name}_id}", "{$controller}.get");
-            $this->put("{$base}{$name}/{{$name}_id}", "{$controller}.update");
-            $this->post("{$base}{$name}", "{$controller}.create");
-            $this->delete("{$base}{$name}/{{$name}_id}", "{$controller}.delete");
+    private function add_resource($base, $name, $controller) {
 
-        }
-		
-        private function parse_route($route) {
-			$params = [];
-			preg_match_all("/(?<outer>{(?<names>[^}]+)})/", $route, $params);
-			$replaces = [];
-			$find = [];
-			$param_names = [];
+        // index  => GET /resource/
+        // get    => GET /resource/{id:int}
+        // update => PUT /resource/{id:int} && $params
+        // create => POST /resource/ && $params
+        // delete => DELETE /resource/{id:int}
 
-			$num_params = count($params['names']);
+        $this->get("{$base}{$name}", "{$controller}.index");
+        $this->get("{$base}{$name}/{{$name}_id}", "{$controller}.get");
+        $this->put("{$base}{$name}/{{$name}_id}", "{$controller}.update");
+        $this->post("{$base}{$name}", "{$controller}.create");
+        $this->delete("{$base}{$name}/{{$name}_id}", "{$controller}.delete");
 
-			for($i = 0; $i < $num_params; ++$i) {
-				$options = explode(':', $params['names'][$i]);
-				$capture = isset(self::$types[$options[1]]) ?
-							self::$types[$options[1]] :
-							self::$types['str'];
-				array_push($replaces, "(?<{$options[0]}>$capture)?");
-				array_push($find, '/' .$params[0][$i] . '/');
-				array_push($param_names, $options[0]);
-			}
+    }
+    
+    private function parse_route($route) {
+	$params = [];
+	preg_match_all("/(?<outer>{(?<names>[^}]+)})/", $route, $params);
+	$replaces = [];
+	$find = [];
+	$param_names = [];
 
-			$regexp = preg_replace($find, $replaces, $route, $num_params);
-            $regexp = trim($regexp, '/');
-            $regexp .= "/?";
-			$regexp = '/^' . addcslashes($regexp, '/') . '$/';
+	$num_params = count($params['names']);
 
-            return ['regexp' => $regexp, 'params' => $param_names];
-        }
+	for($i = 0; $i < $num_params; ++$i) {
+	    $options = explode(':', $params['names'][$i]);
+	    $capture = isset(self::$types[$options[1]]) ?
+		       self::$types[$options[1]] :
+		       self::$types['str'];
+	    array_push($replaces, "(?<{$options[0]}>$capture)?");
+	    array_push($find, '/' .$params[0][$i] . '/');
+	    array_push($param_names, $options[0]);
+	}
 
-        private function parse_action($action) {
-			$action = explode('.', $action);
-            return ['controller' => $action[0], 'action' => $action[1]];
-        }
-            
+	$regexp = preg_replace($find, $replaces, $route, $num_params);
+        $regexp = trim($regexp, '/');
+        $regexp .= "/?";
+	$regexp = '/^' . addcslashes($regexp, '/') . '$/';
 
-        public function add($method, $name, $action) {
-            $route = $this->parse_route($name);
-            $action = $this->parse_action($action);
-			$this->routes[$method][] = array_merge($route, $action);
-            return true;
-        }
-            
-		public function get($name, $action) {
-            $this->add('get', $name, $action);
-            return $this;
-		}
+        return ['regexp' => $regexp, 'params' => $param_names];
+    }
 
-		public function post($name, $action) {
-            $this->add('post', $name, $action);
-            return $this;
-		}
+    private function parse_action($action) {
+	$action = explode('.', $action);
+        return ['controller' => $action[0], 'action' => $action[1]];
+    }
+    
 
-		public function put($name, $action) {
-            $this->add('put', $name, $action);
-            return $this;
-		}
+    public function add($method, $name, $action) {
+        $route = $this->parse_route($name);
+        $action = $this->parse_action($action);
+	$this->routes[$method][] = array_merge($route, $action);
+        return true;
+    }
+    
+    public function get($name, $action) {
+        $this->add('get', $name, $action);
+        return $this;
+    }
 
-		public function delete($name, $action) {
-            $this->add('delete', $name, $action);
-            return $this;
-		}
+    public function post($name, $action) {
+        $this->add('post', $name, $action);
+        return $this;
+    }
 
-		public function route(Request $request) {
+    public function put($name, $action) {
+        $this->add('put', $name, $action);
+        return $this;
+    }
 
-			$routes = &$this->routes[$request->method()];
-			$values = null;
-			$response = null;
+    public function delete($name, $action) {
+        $this->add('delete', $name, $action);
+        return $this;
+    }
 
-			foreach($routes as $route) {
+    public function route(Request $request) {
 
-				$values = [];
-				$matches = null;
-				$nmatches = preg_match($route['regexp'], $request->path(), $matches);
+	$routes = &$this->routes[$request->method()];
+	$values = null;
+	$response = null;
 
-                if($nmatches > 0) {
-                    foreach($route['params'] as $key) {
-                        if(!isset($matches[$key])) break;
-                        $values[$key] = $matches[$key];
-                    }
+	foreach($routes as $route) {
 
-                    if(count($values) == count($route['params'])) {
-                        $response = $this->call($route, $values, $request);
-                        break;
-                    }
+	    $values = [];
+	    $matches = null;
+	    $nmatches = preg_match($route['regexp'], $request->path(), $matches);
+
+            if($nmatches > 0) {
+                foreach($route['params'] as $key) {
+                    if(!isset($matches[$key])) break;
+                    $values[$key] = $matches[$key];
                 }
 
-			}
-
-            return $response;
-
-		}
-
-		public function call($route, $values, Request $request) {
-
-			try {
-				
-				$controller_class = new ReflectionClass($route['controller']);
-				$action_methods = $controller_class->getMethods(ReflectionMethod::IS_PUBLIC);
-
-				array_walk($action_methods, function(&$v) {
-					$v = $v->getName();
-				});
-
-				if(($index = array_search($route['action'], $action_methods)) === false){
-					return null;
-				}
-
-				$action_method = $controller_class->getMethod($action_methods[$index]);
-
-                $controller = Services::inject($controller_class);
-
-				$parameters = $action_method->getParameters();
-
-				$arguments = [];
-
-				foreach($parameters as $param) {
-					$arguments[] = isset($values[$param->getName()]) ?
-									$values[$param->getName()] :
-                                 Services::get($param->getClass()->name);
-				}
-
-
-				fix_types($arguments);
-
-				$result = call_user_func_array(
-					array($controller, $action_method->name),
-					$arguments
-				);
-
-
-			} catch (Exception $e) {
-				echo $e->getMessage();
-                return null;
-			}
-
-            return $result;
-
-		}
+                if(count($values) == count($route['params'])) {
+                    $response = $this->call($route, $values, $request);
+                    break;
+                }
+            }
 
 	}
+
+        return $response;
+
+    }
+
+    public function call($route, $values, Request $request) {
+
+	try {
+	    
+	    $controller_class = new ReflectionClass($route['controller']);
+	    $action_methods = $controller_class->getMethods(ReflectionMethod::IS_PUBLIC);
+
+	    array_walk($action_methods, function(&$v) {
+		$v = $v->getName();
+	    });
+
+	    if(($index = array_search($route['action'], $action_methods)) === false){
+		return null;
+	    }
+
+	    $action_method = $controller_class->getMethod($action_methods[$index]);
+
+            $controller = Services::inject($controller_class);
+
+	    $parameters = $action_method->getParameters();
+
+	    $arguments = [];
+
+	    foreach($parameters as $param) {
+		$arguments[] = isset($values[$param->getName()]) ?
+			       $values[$param->getName()] :
+                               Services::get($param->getClass()->name);
+	    }
+
+
+	    fix_types($arguments);
+
+	    $result = call_user_func_array(
+		array($controller, $action_method->name),
+		$arguments
+	    );
+
+
+	} catch (Exception $e) {
+	    echo $e->getMessage();
+            return null;
+	}
+
+        return $result;
+
+    }
+
+}
 
 ?>

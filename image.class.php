@@ -13,7 +13,6 @@ class Image {
 
     public function load_file($file)
     {
-        echo "LOADING: " . $file ."\n";
         $data = file_get_contents($file);
         $this->image = imagecreatefromstring($data);
         $this->file = file;
@@ -24,17 +23,17 @@ class Image {
         if(empty($file)) $file = $this->file;
         
         switch($type) {
-        case IMAGETYPE_JPEG:
-            $this->image = imagejpeg($this->image, $file, $compression);
-            break;
-        case IMAGETYPE_GIF:
-            $this->image = imagegif($this->image, $file);
-            break;
-        case IMAGETYPE_PNG:
-            $this->image = imagepng($this->image, $file);
-            break;
-        default:
-            throw new Exception("File format not supported.");
+            case IMAGETYPE_JPEG:
+		$this->image = imagejpeg($this->image, $file, $compression);
+		break;
+            case IMAGETYPE_GIF:
+		$this->image = imagegif($this->image, $file);
+		break;
+            case IMAGETYPE_PNG:
+		$this->image = imagepng($this->image, $file);
+		break;
+            default:
+		throw new Exception("File format not supported.");
         }
 
         if($permissions !== null) {
@@ -43,7 +42,7 @@ class Image {
 
     }
 
-	public function width() {
+    public function width() {
         return imagesx($this->image);
     }
 
@@ -63,7 +62,7 @@ class Image {
         $this->resize($width,$height); 
     }
 
-	public function resize($width,$height) {
+    public function resize($width,$height) {
         $new_image = imagecreatetruecolor($width, $height);
         imagecolortransparent($new_image, imagecolorallocate($new_image, 0, 0, 0));
         imagealphablending($new_image, false);

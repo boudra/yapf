@@ -26,6 +26,10 @@ class Database {
 
     }
 
+    public function last_id() {
+	return $this->db->lastInsertId();
+    }
+
     public function query($table = null, $alias = null) {
         return ($table === null) ? new Query($this->db) : new Query($table, $alias);
     }
@@ -38,20 +42,14 @@ class Database {
         return (new Query($this->db))->select($table, $alias);
     }
 
+    public function insert($table, $alias = null) {
+        return (new Query($this->db))->insert($table, $alias);
+    }
+
     public function delete($table, $alias = null) {
         return (new Query($this->db))->select($table, $alias);
     }
 
-}
-
-class Join {
-    private $query = null;
-    public function __construct(Query $query) {
-        $this->query($query);
-    }
-    public function on() {
-        return $this->query;
-    }
 }
 
 class Query {
@@ -92,6 +90,11 @@ class Query {
         return $this->table($name, $alias);
     }
 
+    public function insert($name, $alias = null) {
+        $this->action = 'INSERT';
+        return $this->table($name, $alias);
+    }
+
     public function delete($name, $alias = null) {
         $this->action = 'DELETE';
         return $this->table($name, $alias);
@@ -116,6 +119,15 @@ class Query {
     public function field($field) {
         $this->fields[] = $field;
         return $this;
+    }
+
+    public function values($values) {
+
+	foreach($values as $name => $value) {
+	    $this->prepare_values[$name] = $value;
+	}
+
+	return $this;
     }
 
     public function from($table) {
@@ -323,6 +335,17 @@ class Query {
             break;
 
         }
+
+	case 'INSERT': {
+
+	    $names = array_keys($this->prepare_values);
+	    $sql = sprintf("INSERT INTO %s(%s) VALUES(%s);",
+			   $this->last_table,
+			   implode(',', $names),
+			   implode(',', array_map(function($value) { return ':' . $value; }, $names)));
+
+	    break;
+	}
             
         };
 
@@ -331,13 +354,22 @@ class Query {
         return $this;
     }
 
-    public function fetch() {
+    public function last_id() {
+	return $this->db->lastInsertId();
+    }
+
+    public function fetch($mode = PDO::FETCH_ASSOC) {
         if(strlen($this->sql) === 0) $this->build();
-        // echo "EXEC: {$this->sql}\n";
-        // echo "WITH: "; print_r($this->prepare_values); echo "\n";
         $query = $this->db->prepare($this->sql);
         $query->execute($this->prepare_values);
-        return $query->fetchAll(PDO::FETCH_ASSOC);
+        return $query->fetchAll($mode);
+    }
+
+    public function execute() {
+        if(strlen($this->sql) === 0) $this->build();
+        $query = $this->db->prepare($this->sql);
+        $query->execute($this->prepare_values);
+        return $query->rowCount();
     }
 
 };

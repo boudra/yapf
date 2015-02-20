@@ -51,6 +51,13 @@ class Taxo extends Controller {
         $search = file_get_contents("http://eol.org/api/search/1.0.json?q=$name&page=1&exact=true");
         $search = json_decode($search);
 
+	$relative_dir = "/taxons/{$taxo_id}";
+
+        $dir = DATA_DIR . $relative_dir;
+        $url = DATA_URL . $relative_dir;
+
+        if(!is_dir($dir)) mkdir($dir, 0755, true);
+
         if($search->totalResults > 0) {
 
             $result = $search->results[0];
@@ -60,20 +67,69 @@ class Taxo extends Controller {
             $images = $object->dataObjects;
             $count = 0;
 
-            $dir = ROOT_DIR . "/data/taxons/{$taxo_id}";
-            if(!is_dir($dir)) mkdir($dir, 0755, true);
-            
             foreach($images as $image_object) {
-                $count++;
-                $image = new Image($image_object->mediaURL);
-                $image->resize_height(300);
-                $image->save("{$dir}/{$count}.jpg", IMAGETYPE_JPEG);
-                $taxo['images'][] = $count . ".jpg";
+
+		$taxo_image = $db->select('taxo_imatge', 'ti')
+				 ->fields('ti.*')
+				 ->where('ti.eol_id', '=', $image_object->identifier)
+				 ->where('ti.taxo_id', '=', $taxo['taxo_id'])
+				 ->fetch();
+
+		if(count($taxo_image) == 0) {
+
+		    $db->insert('taxo_imatge')->values([
+			'taxo_id' => $taxo['taxo_id'],
+			'llicencia' => $image_object->license,
+			'font' => $image_object->mediaURL,
+			'eol_id' => $image_object->identifier
+		    ])->execute();
+
+		    $image_id = $db->last_id();
+
+                    $image = new Image($image_object->mediaURL);
+                    $image->resize_height(300);
+                    $image->save("{$dir}/{$image_id}.jpg", IMAGETYPE_JPEG);
+
+		}
+
             }
 
         }
 
+	$imatges = $db->select('taxo_imatge', 'ti')
+		      ->fields('ti.taxo_imatge_id')
+		      ->where('ti.taxo_id', '=', $taxo['taxo_id'])
+		      ->fetch(PDO::FETCH_COLUMN);
+
+	array_walk($imatges, function(&$image_id, $key, $taxo_id) {
+	    $image_id = ROOT_URL . "/taxo/{$taxo_id}/image/{$image_id}";
+	}, $taxo['taxo_id']);
+
+	$taxo['images'] = $imatges;
+
         return response('ok')->json($taxo);
+
+    }
+
+    public function image($taxo_id, $image_id, Database $db) {
+
+	$taxo_image = $db->select('taxo_imatge', 'ti')
+			 ->fields('ti.*')
+			 ->where('ti.taxo_imatge_id', '=', $image_id)
+			 ->where('ti.taxo_id', '=', $taxo_id)
+			 ->fetch();
+
+        $image_file = DATA_DIR . "/taxons/{$taxo_id}/{$image_id}.jpg";
+
+	if(file_exists($image_file) && count($taxo_image) > 0) {
+
+	    return response('ok')->image($image_file);
+
+	} else {
+
+            return response('not_found')->json([]);
+
+	}
 
     }
 

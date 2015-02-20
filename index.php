@@ -11,6 +11,7 @@ $router = Services::get('Router');
 
 $router->resource('taxo', 'Taxo');
 $router->resource('taxo.sinonims', 'TaxoSinonims');
+$router->get('/taxo/{taxo_id}/image/{image_id}', 'Taxo.image');
 
 $router->resource('autor', 'Autor');
 $router->resource('clasificacio', 'Clasificacio');
