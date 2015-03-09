@@ -17,7 +17,8 @@ class Response {
 
     private static $content_types_short = [
         'plain' => 'text/plain',
-        'json' => 'application/json'
+        'json' => 'application/json',
+	'html' => 'text/html'
     ];
 
     public function __construct($status = 200, $data = null) {
@@ -25,7 +26,7 @@ class Response {
         $this->status($status);
     }
     
-    public function respond() {
+    public function respond($views_dirs) {
 
         header("Content-type: {$this->content_type}; charset={$this->charset}");
         http_response_code($this->status_code);
@@ -34,9 +35,13 @@ class Response {
             echo $this->encode_json($this->data);
 	} else if(substr($this->content_type, 0, 5) === 'image') {
 	    readfile($this->data);
+	} else if($this->content_type === 'text/html') {
+	    $te = Services::get('TemplateEngine');
+	    echo $te->display($this->view, $this->data);
 	} else {
             echo $this->data;
         }
+
     }
 
     public function type($type) {
@@ -64,6 +69,13 @@ class Response {
         $this->type($mime);
         $this->data = $data;
         return $this;
+    }
+
+    public function view($name, $data = null) {
+	$this->type('html');
+	$this->data = $data;
+	$this->view = $name;
+	return $this;
     }
 
     public function output($key, $value) {

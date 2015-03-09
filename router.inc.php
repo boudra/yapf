@@ -67,8 +67,7 @@ class Router
 
 	$regexp = preg_replace($find, $replaces, $route, $num_params);
         $regexp = trim($regexp, '/');
-        $regexp .= "/?";
-	$regexp = '/^' . addcslashes($regexp, '/') . '$/';
+	$regexp = "/^\/*" . addcslashes($regexp, '/') . "\/*$/";
 
         return ['regexp' => $regexp, 'params' => $param_names];
     }
@@ -112,24 +111,26 @@ class Router
 	$values = null;
 	$response = null;
 
-	foreach($routes as $route) {
+	if(isset($routes)) {
+	    foreach($routes as $route) {
 
-	    $values = [];
-	    $matches = null;
-	    $nmatches = preg_match($route['regexp'], $request->path(), $matches);
+		$values = [];
+		$matches = null;
+		$nmatches = preg_match($route['regexp'], $request->path(), $matches);
 
-            if($nmatches > 0) {
-                foreach($route['params'] as $key) {
-                    if(!isset($matches[$key])) break;
-                    $values[$key] = $matches[$key];
-                }
+		if($nmatches > 0) {
+                    foreach($route['params'] as $key) {
+			if(!isset($matches[$key])) break;
+			$values[$key] = $matches[$key];
+                    }
 
-                if(count($values) == count($route['params'])) {
-                    $response = $this->call($route, $values, $request);
-                    break;
-                }
-            }
+                    if(count($values) == count($route['params'])) {
+			$response = $this->call($route, $values, $request);
+			break;
+                    }
+		}
 
+	    }
 	}
 
         return $response;

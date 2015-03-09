@@ -1,12 +1,15 @@
 <?php
 
+require_once 'config.inc.php';
+require_once 'config.class.php';
 require_once 'controller.inc.php';
 require_once 'router.inc.php';
+require_once 'request.class.php';
 require_once 'response.class.php';
+require_once 'template_engine.class.php';
 require_once 'image.class.php';
 require_once 'utils.inc.php';
 require_once 'db.inc.php';
-
 
 class Services {
 
@@ -62,6 +65,9 @@ class Application {
     protected $method = '';
     protected $args = array();
 
+    protected $controller_dirs = [];
+    protected $views_dirs = [];
+
     private $config = [];
     private $request = null;
     private $router = null;
@@ -72,7 +78,24 @@ class Application {
 
     public function load_class($name) {
         $name = strtolower(preg_replace('/([A-Z])/', '_$1', lcfirst($name)));
-        require "controllers/$name.php";
+	foreach($this->controller_dirs as $dir) {
+	    if(is_dir($dir) && file_exists("{$dir}/{$name}.php")) {
+		require "{$dir}/{$name}.php";
+		break;
+	    }
+	}
+    }
+
+    public function add_controllers_dir($directory) {
+	$this->controller_dirs[] = $directory;
+    }
+
+    public function add_views_dir($directory) {
+	Services::get('TemplateEngine')->add_dir($directory);
+    }
+
+    public function get_config() {
+	return $this->config;
     }
 
     public function __construct($url)
@@ -82,7 +105,22 @@ class Application {
 
         spl_autoload_register(array($this, 'load_class'));
 
-        $this->config = $config;
+	$this->config = new Config();
+
+	$this->config->db_host = $config['db_host'];
+	$this->config->language = $config['language'];
+	$this->config->encoding = $config['encoding'];
+
+	$this->config->lib_url = guess_lib_url();
+	$this->config->lib_dir = dirname(__FILE__);
+
+	$this->config->app_dir = dirname($_SERVER['SCRIPT_FILENAME']);
+	$this->config->app_url = guess_app_url();
+
+	$this->config->data_dir = $this->config->app_dir . '/data';
+	$this->config->data_url = $this->config->app_url . '/data';
+
+	Services::set($this->config);
 
         $this->method = strtolower($_SERVER['REQUEST_METHOD']);
 
@@ -105,9 +143,11 @@ class Application {
 
         $this->request = new Request(explode('?', $url)[0], $this->method, $request_data);
 
-        $this->db = new Database($this->config);
+        $this->db = new Database($config);
+
         Services::set($this->db);
         Services::set($this->request);
+	Services::set(new TemplateEngine());
 
         $this->router = Services::inject_set('Router');
 
@@ -115,7 +155,7 @@ class Application {
 
     public function start() {
 
-        $response = $this->router->route($this->request);
+	$response = $this->router->route($this->request);
 
         if($response === null)
         {
@@ -129,7 +169,7 @@ class Application {
     }
 
     public function finish() {
-        $this->response->respond();
+        $this->response->respond($this->views_dirs);
     }
 
 };

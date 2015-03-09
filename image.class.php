@@ -13,7 +13,12 @@ class Image {
 
     public function load_file($file)
     {
-        $data = file_get_contents($file);
+	$ctx = stream_context_create(array('http'=>
+	    array(
+		'timeout' => 5, 
+	    )
+	));
+        $data = file_get_contents($file, false, $ctx);
         $this->image = imagecreatefromstring($data);
         $this->file = file;
     }
