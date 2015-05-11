@@ -48,8 +48,8 @@ function path_to_url($path) {
 }
 
 function guess_lib_url() {
-    $relative = get_current_path();
-    $base_url = preg_replace("!{$relative}(.*)$!", '', str_replace("\\", '/', $_SERVER['REQUEST_URI']));
+    $relative = quotemeta(get_current_path());
+    $base_url = preg_replace("!" . $relative . "(.*)$!", '', str_replace("\\", '/', $_SERVER['REQUEST_URI']));
     return path_to_url($base_url);
 }
 

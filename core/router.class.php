@@ -73,8 +73,13 @@ class Router
     }
 
     private function parse_action($action) {
-	$action = explode('.', $action);
-        return ['controller' => $action[0], 'action' => $action[1]];
+	if(is_string($action) &&
+	    strpos($action, '.') !== false) {
+	    $action = explode('.', $action);
+	}
+        return [
+	    'action' => $action
+	];
     }
     
 
@@ -141,43 +146,70 @@ class Router
 
 	try {
 	    
-	    $controller_class = new ReflectionClass($route['controller']);
-	    $action_methods = $controller_class->getMethods(ReflectionMethod::IS_PUBLIC);
+	    if(is_array($route['action'])) {
 
-	    array_walk($action_methods, function(&$v) {
-		$v = $v->getName();
-	    });
+		$controller_class = new ReflectionClass($route['action'][0]);
+		$action_methods = $controller_class->getMethods(ReflectionMethod::IS_PUBLIC);
 
-	    if(($index = array_search($route['action'], $action_methods)) === false){
-		return null;
+		array_walk($action_methods, function(&$v) {
+		    $v = $v->getName();
+		});
+
+		if(($index = array_search($route['action'][1], $action_methods)) === false){
+		    return null;
+		}
+
+		$action_method = $controller_class->getMethod($action_methods[$index]);
+
+		$controller = Services::inject($controller_class);
+
+		$parameters = $action_method->getParameters();
+
+		$arguments = [];
+
+		foreach($parameters as $param) {
+		    $arguments[] = isset($values[$param->getName()]) ?
+				   $values[$param->getName()] :
+				   Services::get($param->getClass()->name);
+		}
+
+		fix_types($arguments);
+
+		$result = call_user_func_array(
+		    array($controller, $action_method->name),
+		    $arguments
+		);
+
+	    } else if(is_callable($route['action'])) {
+
+		$action_method = new ReflectionFunction($route['action']);
+		$parameters = $action_method->getParameters();
+		$arguments = [];
+
+		foreach($parameters as $param) {
+		    $arguments[] = isset($values[$param->getName()]) ?
+				   $values[$param->getName()] :
+				   Services::get($param->getClass()->name);
+		}
+
+		fix_types($arguments);
+
+		$result = call_user_func_array(
+		    $route['action'],
+		    $arguments
+		);
+
 	    }
 
-	    $action_method = $controller_class->getMethod($action_methods[$index]);
-
-            $controller = Services::inject($controller_class);
-
-	    $parameters = $action_method->getParameters();
-
-	    $arguments = [];
-
-	    foreach($parameters as $param) {
-		$arguments[] = isset($values[$param->getName()]) ?
-			       $values[$param->getName()] :
-                               Services::get($param->getClass()->name);
-	    }
-
-
-	    fix_types($arguments);
-
-	    $result = call_user_func_array(
-		array($controller, $action_method->name),
-		$arguments
-	    );
 
 
 	} catch (Exception $e) {
 	    echo $e->getMessage();
             return null;
+	}
+
+	if(!($result instanceof Response)) {
+	    $result = response();
 	}
 
         return $result;

@@ -1,15 +1,18 @@
 <?php
 
 require_once 'config.inc.php';
-require_once 'config.class.php';
-require_once 'controller.inc.php';
-require_once 'router.inc.php';
-require_once 'request.class.php';
-require_once 'response.class.php';
-require_once 'template_engine.class.php';
-require_once 'image.class.php';
-require_once 'utils.inc.php';
-require_once 'db.inc.php';
+
+require_once 'core/config.class.php';
+require_once 'core/controller.class.php';
+require_once 'core/router.class.php';
+require_once 'core/request.class.php';
+require_once 'core/response.class.php';
+
+require_once 'utils/template_engine.class.php';
+require_once 'utils/image.class.php';
+require_once 'utils/utils.inc.php';
+
+require_once 'database/db.inc.php';
 
 class Services {
 
@@ -87,29 +90,28 @@ class Application {
     }
 
     public function add_controllers_dir($directory) {
-	$this->controller_dirs[] = $directory;
+	$this->controller_dirs[] = realpath($directory);
     }
 
     public function add_views_dir($directory) {
-	Services::get('TemplateEngine')->add_dir($directory);
+	Services::get('TemplateEngine')->add_dir(realpath($directory));
     }
 
     public function get_config() {
 	return $this->config;
     }
 
-    public function __construct($url)
+    public function __construct(Config $config = null, $url = null)
     {
 
-        global $config;
+	if(!$url) $url = get_current_path();
 
         spl_autoload_register(array($this, 'load_class'));
 
-	$this->config = new Config();
+	$this->config = $config ? $config : new Config();
 
-	$this->config->db_host = $config['db_host'];
-	$this->config->language = $config['language'];
-	$this->config->encoding = $config['encoding'];
+	if(!isset($this->config->encoding))
+	    $this->config->encoding = 'UTF-8';
 
 	$this->config->lib_url = guess_lib_url();
 	$this->config->lib_dir = dirname(__FILE__);
@@ -143,9 +145,6 @@ class Application {
 
         $this->request = new Request(explode('?', $url)[0], $this->method, $request_data);
 
-        $this->db = new Database($config);
-
-        Services::set($this->db);
         Services::set($this->request);
 	Services::set(new TemplateEngine());
 
@@ -166,10 +165,11 @@ class Application {
             $this->response = $response;
         }
 
+        $this->response->respond($this->views_dirs);
+
     }
 
     public function finish() {
-        $this->response->respond($this->views_dirs);
     }
 
 };

@@ -1,57 +1,5 @@
 <?php
 
-class Database {
-    
-    private $db;
-    
-    public function __construct($config) {
-        
-        $this->config = $config;
-
-        $set_names = sprintf("SET NAMES '%s';", str_replace('-', '', $this->config['encoding']));
-
-        try {
-
-            $this->db = new PDO('mysql:host=' . $this->config['db_host'] .
-                                ';dbname=' . $this->config['db_db'],
-                                $this->config['db_user'], $this->config['db_pass'],
-                                array(PDO::MYSQL_ATTR_INIT_COMMAND => $set_names));
-
-        }
-        catch (PDOException $e)
-        {
-            echo $e->getMessage();
-            die();
-        }
-
-    }
-
-    public function last_id() {
-	return $this->db->lastInsertId();
-    }
-
-    public function query($table = null, $alias = null) {
-        return ($table === null) ? new Query($this->db) : new Query($table, $alias);
-    }
-
-    public function table($table, $alias = null) {
-        return (new Query($this->db))->table($table, $alias);
-    }
-
-    public function select($table, $alias = null) {
-        return (new Query($this->db))->select($table, $alias);
-    }
-
-    public function insert($table, $alias = null) {
-        return (new Query($this->db))->insert($table, $alias);
-    }
-
-    public function delete($table, $alias = null) {
-        return (new Query($this->db))->select($table, $alias);
-    }
-
-}
-
 class Query {
 
     public $db = null;
@@ -123,11 +71,11 @@ class Query {
 
     public function values($values) {
 
-	foreach($values as $name => $value) {
-	    $this->prepare_values[$name] = $value;
-	}
+        foreach($values as $name => $value) {
+            $this->prepare_values[$name] = $value;
+        }
 
-	return $this;
+        return $this;
     }
 
     public function from($table) {
@@ -153,11 +101,11 @@ class Query {
         ];
 
         $this->last_join = $alias;
-        
+
     }
 
     private function add_join_rule($args, $type = null) {
-        
+
         $nargs = count($args);
         $join = &$this->joins[$this->last_join];
 
@@ -336,17 +284,17 @@ class Query {
 
         }
 
-	case 'INSERT': {
+        case 'INSERT': {
 
-	    $names = array_keys($this->prepare_values);
-	    $sql = sprintf("INSERT INTO %s(%s) VALUES(%s);",
-			   $this->last_table,
-			   implode(',', $names),
-			   implode(',', array_map(function($value) { return ':' . $value; }, $names)));
+            $names = array_keys($this->prepare_values);
+            $sql = sprintf("INSERT INTO %s(%s) VALUES(%s);",
+                           $this->last_table,
+                           implode(',', $names),
+                           implode(',', array_map(function($value) { return ':' . $value; }, $names)));
 
-	    break;
-	}
-            
+            break;
+        }
+    
         };
 
         $this->sql = $sql;
@@ -355,7 +303,7 @@ class Query {
     }
 
     public function last_id() {
-	return $this->db->lastInsertId();
+        return $this->db->lastInsertId();
     }
 
     public function fetch($mode = PDO::FETCH_ASSOC) {

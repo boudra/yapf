@@ -83,6 +83,12 @@ class Response {
         return $this;
     }
 
+    public function set($data) {
+	$this->data = $data;
+	return $this;
+    }
+
+    /* encode json as UTF-8 */
     private function encode_json($data)
     {
         $string =  json_encode($data, JSON_PRETTY_PRINT);
