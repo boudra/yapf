@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Utils;
+
 function fix_types(&$arr) {
     $arr = array_map(function($v) {
         return is_numeric($v) ?  0 + $v : $v;

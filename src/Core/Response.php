@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Core;
+
 class Response {
 
     private $content_type = "text/plain";

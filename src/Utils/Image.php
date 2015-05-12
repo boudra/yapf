@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Utils;
+
 class Image {
 
     private $image;

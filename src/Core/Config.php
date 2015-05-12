@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Core;
+
 class Config {
 
     public function __get($property) {

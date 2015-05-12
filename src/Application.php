@@ -1,66 +1,6 @@
 <?php
 
-require_once 'config.inc.php';
-
-require_once 'core/config.class.php';
-require_once 'core/controller.class.php';
-require_once 'core/router.class.php';
-require_once 'core/request.class.php';
-require_once 'core/response.class.php';
-
-require_once 'utils/template_engine.class.php';
-require_once 'utils/image.class.php';
-require_once 'utils/utils.inc.php';
-
-require_once 'database/db.inc.php';
-
-class Services {
-
-    public static $services = [];
-
-    public static function exists($type) {
-        return isset(self::$services[$type]);
-    }
-
-    public static function get($type) {
-        return self::exists($type) ? self::$services[$type] : null;
-    }
-
-    public static function set(&$service) {
-        self::$services[get_class($service)] = &$service;
-        return $service;
-    }
-
-    public static function inject($class) {
-
-        if(is_string($class)) {
-            $class = new ReflectionClass($class);
-        }
-        
-        $constructor = $class->getConstructor();
-
-        $arguments = [];
-
-        if($constructor !== null) {
-
-            $parameters = $constructor->getParameters();
-
-            foreach($parameters as $param) {
-                $arguments[] = self::get($param->getClass()->name);
-            }
-
-        }
-
-        return $class->newInstanceArgs($arguments);
-    }
-
-    public static function inject_set($class) {
-        $class = self::inject($class);
-        self::set($class);
-        return $class;
-    }
-
-};
+namespace App;
 
 class Application {
 
@@ -110,7 +50,7 @@ class Application {
 
 	$this->config = $config ? $config : new Config();
 
-	if(!isset($this->config->encoding))
+	if(empty($this->config->encoding))
 	    $this->config->encoding = 'UTF-8';
 
 	$this->config->lib_url = guess_lib_url();

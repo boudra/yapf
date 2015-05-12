@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Database;
+
 class Query {
 
     public $db = null;

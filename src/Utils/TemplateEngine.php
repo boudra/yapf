@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Utils;
+
 class TemplateEngine {
 
     private $compiled;
