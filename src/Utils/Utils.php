@@ -1,6 +1,7 @@
 <?php
 
-namespace App\Utils;
+/* global */
+namespace {
 
 function fix_types(&$arr) {
     $arr = array_map(function($v) {
@@ -29,13 +30,13 @@ function get_current_path() {
     static $url = null;
 
     if($url === null) {
-	if(empty($_GET['url'])) {
-	    $url = str_replace(dirname($_SERVER['SCRIPT_NAME']) . '/', '', $_SERVER['REQUEST_URI']);
-	}
-	else
-	{
-	    $url = $_GET['url'];
-	}
+        if(empty($_GET['url'])) {
+            $url = str_replace(dirname($_SERVER['SCRIPT_NAME']) . '/', '', $_SERVER['REQUEST_URI']);
+        }
+        else
+        {
+            $url = $_GET['url'];
+        }
     }
 
     return $url;
@@ -62,6 +63,8 @@ function guess_app_url() {
     $doc_root = preg_replace("!{$script_relative}$!", '', $script_absolute);
     $base_url = preg_replace("!^{$doc_root}!", '', $base_dir);
     return path_to_url($base_url);
+}
+
 }
 
 ?>
