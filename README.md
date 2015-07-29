@@ -1,4 +1,3 @@
-====
 YAPF
 ====
 
@@ -16,29 +15,29 @@ Features
   data, supports multiple joins, and advanced where expressions.
 - Simple image manipulation class
 
-Examples
+Example
 =======
 
+```PHP
+use App\Application;
+use App\Core\Router;
 
-    use App\Application;
-    use App\Core\Router;
+$app = new Application();
 
-    $app = new Application();
+$app->run(function(Router $router) {
 
-    $app->run(function(Router $router) {
+    $router->get('/app/{name}/{age:int}', function($name, $age) {
 
-        $router->get('/app/{name}/{age:int}', function($name, $age) {
-
-            return [
-                'msg' => "Hello $name, you are $age years old!",
-            ];
-
-        });
+        return [
+            'msg' => "Hello $name, you are $age years old!",
+        ];
 
     });
 
-    // GET http://localhost/app/John/21
-    {
-        "msg": "Hello John, you are 21 years old!"
-    }
+});
 
+// GET http://localhost/app/John/21
+{
+    "msg": "Hello John, you are 21 years old!"
+}
+```
