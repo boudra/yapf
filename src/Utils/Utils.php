@@ -19,7 +19,7 @@ function rename_keys($arr, $keys) {
 }
 
 function response($status = 200, $data = null) {
-    return new Response($status, $data);
+    return new App\Core\Response($status, $data);
 }
 
 function query($table, $alias = null) {

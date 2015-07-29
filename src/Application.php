@@ -2,6 +2,13 @@
 
 namespace App;
 
+use App\Core\Config;
+use App\Core\Services;
+use App\Core\Request;
+use App\Core\Router;
+
+use App\Utils\TemplateEngine;
+
 require 'Utils/Utils.php';
 
 class Application {
@@ -77,41 +84,38 @@ class Application {
             }
         }
 
-        $this->params = array_values(array_filter(explode('/', explode('?', $url)[0])));
-
         $request_body = json_decode(file_get_contents('php://input'), true);
         if($request_body === null) $request_body = [];
         $request_data = array_merge($request_body, $_GET, $_POST);
-
-        $function_name = $this->method . '_' . $this->params[0];
 
         $this->request = new Request(explode('?', $url)[0], $this->method, $request_data);
 
         Services::set($this->request);
         Services::set(new TemplateEngine());
 
-        $this->router = Services::inject_set('Router');
+        $this->router = Services::inject_set(Router::class);
 
     }
 
-    public function start() {
+    public function run($callback) {
+
+        if(is_callable($callback)) {
+            Services::inject($callback);
+        }
 
         $response = $this->router->route($this->request);
 
         if($response === null)
         {
-            $this->response = response('error')->json('invalid action');
+            $this->response = response('not_found')->set('Route not found');
         }
         else
         {
             $this->response = $response;
         }
 
-        $this->response->respond($this->views_dirs);
+        echo $this->response;
 
-    }
-
-    public function finish() {
     }
 
 };

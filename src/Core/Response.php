@@ -20,43 +20,47 @@ class Response {
     private static $content_types_short = [
         'plain' => 'text/plain',
         'json' => 'application/json',
-	'html' => 'text/html'
+        'html' => 'text/html'
     ];
 
     public function __construct($status = 200, $data = null) {
-        $this->data = $data; 
+        $this->data = $data;
         $this->status($status);
     }
-    
-    public function respond($views_dirs) {
+
+    public function respond() {
 
         header("Content-type: {$this->content_type}; charset={$this->charset}");
         http_response_code($this->status_code);
 
         if($this->content_type === 'application/json') {
-            echo $this->encode_json($this->data);
-	} else if(substr($this->content_type, 0, 5) === 'image') {
-	    readfile($this->data);
-	} else if($this->content_type === 'text/html') {
-	    $te = Services::get('TemplateEngine');
-	    echo $te->display($this->view, $this->data);
-	} else {
-            echo $this->data;
+            return $this->encode_json($this->data);
+        } else if(substr($this->content_type, 0, 5) === 'image') {
+            return file_get_contents($this->data);
+        } else if($this->content_type === 'text/html') {
+            $te = Services::get('TemplateEngine');
+            return $te->display($this->view, $this->data);
+        } else {
+            return $this->data;
         }
 
     }
 
+    public function __toString() {
+        return $this->respond();
+    }
+
     public function type($type) {
         $this->content_type = isset(self::$content_types_short[$type]) ?
-                            self::$content_types_short[$type] :
-                            $type;
+            self::$content_types_short[$type] :
+            $type;
         return $this;
     }
 
     public function status($status) {
         $this->status_code = is_numeric($status) ?
-                           $status :
-                           self::$status_codes[$status];
+            $status :
+            self::$status_codes[$status];
         return $this;
     }
 
@@ -67,17 +71,17 @@ class Response {
     }
 
     public function image($data) {
-	$mime = getimagesize($data)['mime']; 
+        $mime = getimagesize($data)['mime'];
         $this->type($mime);
         $this->data = $data;
         return $this;
     }
 
     public function view($name, $data = null) {
-	$this->type('html');
-	$this->data = $data;
-	$this->view = $name;
-	return $this;
+        $this->type('html');
+        $this->data = $data;
+        $this->view = $name;
+        return $this;
     }
 
     public function output($key, $value) {
@@ -86,8 +90,8 @@ class Response {
     }
 
     public function set($data) {
-	$this->data = $data;
-	return $this;
+        $this->data = $data;
+        return $this;
     }
 
     /* encode json as UTF-8 */

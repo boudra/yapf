@@ -18,8 +18,6 @@ class Router
 
         $names = explode('.', $name);
 
-        // [0] => "taxo", [1] => "sinonims"
-
         $last = array_pop($names);
 
         $base = "";
@@ -47,51 +45,51 @@ class Router
         $this->delete("{$base}{$name}/{{$name}_id}", "{$controller}.delete");
 
     }
-    
+
     private function parse_route($route) {
-	$params = [];
-	preg_match_all("/(?<outer>{(?<names>[^}]+)})/", $route, $params);
-	$replaces = [];
-	$find = [];
-	$param_names = [];
+        $params = [];
+        preg_match_all("/(?<outer>{(?<names>[^}]+)})/", $route, $params);
+        $replaces = [];
+        $find = [];
+        $param_names = [];
 
-	$num_params = count($params['names']);
+        $num_params = count($params['names']);
 
-	for($i = 0; $i < $num_params; ++$i) {
-	    $options = explode(':', $params['names'][$i]);
-	    $capture = isset(self::$types[$options[1]]) ?
-		       self::$types[$options[1]] :
-		       self::$types['str'];
-	    array_push($replaces, "(?<{$options[0]}>$capture)?");
-	    array_push($find, '/' .$params[0][$i] . '/');
-	    array_push($param_names, $options[0]);
-	}
+        for($i = 0; $i < $num_params; ++$i) {
+            $options = explode(':', $params['names'][$i]);
+            $capture = isset($options[1]) && isset(self::$types[$options[1]]) ?
+                self::$types[$options[1]] :
+                self::$types['str'];
+            array_push($replaces, "(?<{$options[0]}>$capture)?");
+            array_push($find, '/' .$params[0][$i] . '/');
+            array_push($param_names, $options[0]);
+        }
 
-	$regexp = preg_replace($find, $replaces, $route, $num_params);
+        $regexp = preg_replace($find, $replaces, $route, $num_params);
         $regexp = trim($regexp, '/');
-	$regexp = "/^\/*" . addcslashes($regexp, '/') . "\/*$/";
+        $regexp = "/^\/*" . addcslashes($regexp, '/') . "\/*$/";
 
         return ['regexp' => $regexp, 'params' => $param_names];
     }
 
     private function parse_action($action) {
-	if(is_string($action) &&
-	    strpos($action, '.') !== false) {
-	    $action = explode('.', $action);
-	}
+        if(is_string($action) &&
+            strpos($action, '.') !== false) {
+            $action = explode('.', $action);
+        }
         return [
-	    'action' => $action
-	];
+            'action' => $action
+        ];
     }
-    
+
 
     public function add($method, $name, $action) {
         $route = $this->parse_route($name);
         $action = $this->parse_action($action);
-	$this->routes[$method][] = array_merge($route, $action);
+        $this->routes[$method][] = array_merge($route, $action);
         return true;
     }
-    
+
     public function get($name, $action) {
         $this->add('get', $name, $action);
         return $this;
@@ -114,31 +112,31 @@ class Router
 
     public function route(Request $request) {
 
-	$routes = &$this->routes[$request->method()];
-	$values = null;
-	$response = null;
+        $routes = &$this->routes[$request->method()];
+        $values = null;
+        $response = null;
 
-	if(isset($routes)) {
-	    foreach($routes as $route) {
+        if(isset($routes)) {
+            foreach($routes as $route) {
 
-		$values = [];
-		$matches = null;
-		$nmatches = preg_match($route['regexp'], $request->path(), $matches);
+                $values = [];
+                $matches = null;
+                $nmatches = preg_match($route['regexp'], $request->path(), $matches);
 
-		if($nmatches > 0) {
+                if($nmatches > 0) {
                     foreach($route['params'] as $key) {
-			if(!isset($matches[$key])) break;
-			$values[$key] = $matches[$key];
+                        if(!isset($matches[$key])) break;
+                        $values[$key] = $matches[$key];
                     }
 
                     if(count($values) == count($route['params'])) {
-			$response = $this->call($route, $values, $request);
-			break;
+                        $response = $this->call($route, $values, $request);
+                        break;
                     }
-		}
+                }
 
-	    }
-	}
+            }
+        }
 
         return $response;
 
@@ -146,73 +144,73 @@ class Router
 
     public function call($route, $values, Request $request) {
 
-	try {
-	    
-	    if(is_array($route['action'])) {
+        try {
 
-		$controller_class = new ReflectionClass($route['action'][0]);
-		$action_methods = $controller_class->getMethods(ReflectionMethod::IS_PUBLIC);
+            if(is_array($route['action'])) {
 
-		array_walk($action_methods, function(&$v) {
-		    $v = $v->getName();
-		});
+                $controller_class = new \ReflectionClass($route['action'][0]);
+                $action_methods = $controller_class->getMethods(\ReflectionMethod::IS_PUBLIC);
 
-		if(($index = array_search($route['action'][1], $action_methods)) === false){
-		    return null;
-		}
+                array_walk($action_methods, function(&$v) {
+                    $v = $v->getName();
+                });
 
-		$action_method = $controller_class->getMethod($action_methods[$index]);
+                if(($index = array_search($route['action'][1], $action_methods)) === false){
+                    return null;
+                }
 
-		$controller = Services::inject($controller_class);
+                $action_method = $controller_class->getMethod($action_methods[$index]);
 
-		$parameters = $action_method->getParameters();
+                $controller = Services::inject($controller_class);
 
-		$arguments = [];
+                $parameters = $action_method->getParameters();
 
-		foreach($parameters as $param) {
-		    $arguments[] = isset($values[$param->getName()]) ?
-				   $values[$param->getName()] :
-				   Services::get($param->getClass()->name);
-		}
+                $arguments = [];
 
-		fix_types($arguments);
+                foreach($parameters as $param) {
+                    $arguments[] = isset($values[$param->getName()]) ?
+                        $values[$param->getName()] :
+                        Services::get($param->getClass()->name);
+                }
 
-		$result = call_user_func_array(
-		    array($controller, $action_method->name),
-		    $arguments
-		);
+                fix_types($arguments);
 
-	    } else if(is_callable($route['action'])) {
+                $result = call_user_func_array(
+                    array($controller, $action_method->name),
+                    $arguments
+                );
 
-		$action_method = new ReflectionFunction($route['action']);
-		$parameters = $action_method->getParameters();
-		$arguments = [];
+            } else if(is_callable($route['action'])) {
 
-		foreach($parameters as $param) {
-		    $arguments[] = isset($values[$param->getName()]) ?
-				   $values[$param->getName()] :
-				   Services::get($param->getClass()->name);
-		}
+                $action_method = new \ReflectionFunction($route['action']);
+                $parameters = $action_method->getParameters();
+                $arguments = [];
 
-		fix_types($arguments);
+                foreach($parameters as $param) {
+                    $arguments[] = isset($values[$param->getName()]) ?
+                        $values[$param->getName()] :
+                        Services::get($param->getClass()->name);
+                }
 
-		$result = call_user_func_array(
-		    $route['action'],
-		    $arguments
-		);
+                fix_types($arguments);
 
-	    }
+                $result = call_user_func_array(
+                    $route['action'],
+                    $arguments
+                );
+
+            }
 
 
-
-	} catch (Exception $e) {
-	    echo $e->getMessage();
+        } catch (Exception $e) {
+            echo $e->getMessage();
             return null;
-	}
+        }
 
-	if(!($result instanceof Response)) {
-	    $result = response();
-	}
+        if(!($result instanceof Response) &&
+            (is_array($result) || is_object($result))) {
+            $result = response('ok')->json($result);
+        }
 
         return $result;
 

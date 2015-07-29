@@ -11,32 +11,59 @@ class Services {
     }
 
     public static function get($type) {
-        return self::exists($type) ? self::$services[$type] : null;
+        if(self::exists($type)) {
+            return self::$services[$type];
+        }
+
+        try {
+            $class = (new \ReflectionClass($type))->getShortName();
+            return self::$services[$class];
+        } catch (Exception $e) {
+            return null;
+        }
+
     }
 
     public static function set(&$service) {
-        self::$services[get_class($service)] = &$service;
+        $class = new \ReflectionClass(get_class($service));
+        self::$services[$class->getShortName()] = &$service;
         return $service;
     }
 
     public static function inject($class) {
 
-        if(is_string($class)) {
-            $class = new ReflectionClass($class);
-        }
-        
-        $constructor = $class->getConstructor();
+        if(is_callable($class))
+            return self::inject_fn($class);
+        else
+            return self::inject_class($class);
+    }
+
+    private static function inject_fn($fn) {
+
+        $rfn = new \ReflectionFunction($fn);
 
         $arguments = [];
 
-        if($constructor !== null) {
-
-            $parameters = $constructor->getParameters();
-
+        if($fn !== null) {
+            $parameters = $rfn->getParameters();
             foreach($parameters as $param) {
                 $arguments[] = self::get($param->getClass()->name);
             }
+        }
 
+        return $rfn->invokeArgs($arguments);
+    }
+
+    private static function inject_class($class) {
+        $class = new \ReflectionClass($class);
+        $fn = $class->getConstructor();
+        $arguments = [];
+
+        if($fn !== null) {
+            $parameters = $fn->getParameters();
+            foreach($parameters as $param) {
+                $arguments[] = self::get($param->getClass()->name);
+            }
         }
 
         return $class->newInstanceArgs($arguments);
