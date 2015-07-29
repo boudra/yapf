@@ -7,7 +7,6 @@ to use in production.
 Features
 =======
 
-- Services container
 - Dependency Injection integrated with the services container
 - Router, can call Clousures, Controller methods or Resource controllers for
   easy REST API.
