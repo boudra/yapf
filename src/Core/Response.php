@@ -38,8 +38,12 @@ class Response {
         } else if(substr($this->content_type, 0, 5) === 'image') {
             return file_get_contents($this->data);
         } else if($this->content_type === 'text/html') {
-            $te = Services::get('TemplateEngine');
-            return $te->display($this->view, $this->data);
+            if(isset($this->view)) {
+                $te = Services::get('TemplateEngine');
+                return $te->display($this->view, $this->data);
+            } else {
+                return $this->data;
+            }
         } else {
             return $this->data;
         }
@@ -90,6 +94,12 @@ class Response {
     }
 
     public function set($data) {
+        $this->data = $data;
+        return $this;
+    }
+
+    public function html($data) {
+        $this->type('html');
         $this->data = $data;
         return $this;
     }

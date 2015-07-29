@@ -2,6 +2,8 @@
 
 namespace App\Core;
 
+use App\Core\Request;
+
 class Router
 {
 
@@ -161,24 +163,26 @@ class Router
 
                 $action_method = $controller_class->getMethod($action_methods[$index]);
 
-                $controller = Services::inject($controller_class);
+                $controller = Services::injectClass($route['action'][0]);
 
-                $parameters = $action_method->getParameters();
+                $result = Services::injectMethod([$controller, $action_method->name]);
 
-                $arguments = [];
+                //$parameters = $action_method->getParameters();
 
-                foreach($parameters as $param) {
-                    $arguments[] = isset($values[$param->getName()]) ?
-                        $values[$param->getName()] :
-                        Services::get($param->getClass()->name);
-                }
+                //$arguments = [];
 
-                fix_types($arguments);
+                //foreach($parameters as $param) {
+                    //$arguments[] = isset($values[$param->getName()]) ?
+                        //$values[$param->getName()] :
+                        //Services::get($param->getClass()->getShortName());
+                //}
 
-                $result = call_user_func_array(
-                    array($controller, $action_method->name),
-                    $arguments
-                );
+                //fix_types($arguments);
+
+                //$result = call_user_func_array(
+                    //array($controller, $action_method->name),
+                    //$arguments
+                //);
 
             } else if(is_callable($route['action'])) {
 

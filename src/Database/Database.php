@@ -2,33 +2,28 @@
 
 namespace App\Database;
 
+use App\Core\Config;
+
 class Database {
-    
+
     private $db;
-    
+
     public function __construct(Config $config) {
-        
+
         $this->config = $config;
 
         $set_names = sprintf("SET NAMES '%s';", str_replace('-', '', $config->encoding));
 
-        try {
+        $this->db = new \PDO('mysql:host=' . $config->db_host .
+                    ';dbname=' . $config->db_db,
+                    $config->db_user, $config->db_pwd,
+                    array(\PDO::MYSQL_ATTR_INIT_COMMAND => $set_names));
 
-            $this->db = new PDO('mysql:host=' . $config->db_host .
-                                ';dbname=' . $config->db_db,
-                                $config->db_user, $config->db_pass,
-                                array(PDO::MYSQL_ATTR_INIT_COMMAND => $set_names));
-
-        }
-        catch (PDOException $e)
-        {
-            echo $e->getMessage();
-        }
 
     }
 
     public function last_id() {
-	return $this->db->lastInsertId();
+        return $this->db->lastInsertId();
     }
 
     public function table($table, $alias = null) {

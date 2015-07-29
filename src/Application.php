@@ -7,6 +7,8 @@ use App\Core\Services;
 use App\Core\Request;
 use App\Core\Router;
 
+use App\Database\Database;
+
 use App\Utils\TemplateEngine;
 
 require 'Utils/Utils.php';
@@ -99,20 +101,32 @@ class Application {
 
     public function run($callback) {
 
-        if(is_callable($callback)) {
-            Services::inject($callback);
+        try {
+
+            if(is_callable($callback)) {
+                Services::inject($callback);
+            }
+
+            Services::inject_set(Database::class);
+            $response = $this->router->route($this->request);
+
+            if($response === null)
+            {
+                $this->response = response('not_found')->set('Route not found');
+            }
+            else
+            {
+                $this->response = $response;
+            }
+
+        } catch(\Exception $e) {
+
+            $this->response = response('error')->html("
+            <pre style='color: #333; padding: 10px; background: #eee; font-face: monospace;'>{$e}</pre>
+             ");
+
         }
 
-        $response = $this->router->route($this->request);
-
-        if($response === null)
-        {
-            $this->response = response('not_found')->set('Route not found');
-        }
-        else
-        {
-            $this->response = $response;
-        }
 
         echo $this->response;
 
