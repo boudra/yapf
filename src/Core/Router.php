@@ -146,69 +146,63 @@ class Router
 
     public function call($route, $values, Request $request) {
 
-        try {
+        if(is_array($route['action'])) {
 
-            if(is_array($route['action'])) {
+            $controller_class = new \ReflectionClass($route['action'][0]);
+            $action_methods = $controller_class->getMethods(\ReflectionMethod::IS_PUBLIC);
 
-                $controller_class = new \ReflectionClass($route['action'][0]);
-                $action_methods = $controller_class->getMethods(\ReflectionMethod::IS_PUBLIC);
+            array_walk($action_methods, function(&$v) {
+                $v = $v->getName();
+            });
 
-                array_walk($action_methods, function(&$v) {
-                    $v = $v->getName();
-                });
-
-                if(($index = array_search($route['action'][1], $action_methods)) === false){
-                    return null;
-                }
-
-                $action_method = $controller_class->getMethod($action_methods[$index]);
-
-                $controller = Services::injectClass($route['action'][0]);
-
-                $result = Services::injectMethod([$controller, $action_method->name]);
-
-                //$parameters = $action_method->getParameters();
-
-                //$arguments = [];
-
-                //foreach($parameters as $param) {
-                    //$arguments[] = isset($values[$param->getName()]) ?
-                        //$values[$param->getName()] :
-                        //Services::get($param->getClass()->getShortName());
-                //}
-
-                //fix_types($arguments);
-
-                //$result = call_user_func_array(
-                    //array($controller, $action_method->name),
-                    //$arguments
-                //);
-
-            } else if(is_callable($route['action'])) {
-
-                $action_method = new \ReflectionFunction($route['action']);
-                $parameters = $action_method->getParameters();
-                $arguments = [];
-
-                foreach($parameters as $param) {
-                    $arguments[] = isset($values[$param->getName()]) ?
-                        $values[$param->getName()] :
-                        Services::get($param->getClass()->name);
-                }
-
-                fix_types($arguments);
-
-                $result = call_user_func_array(
-                    $route['action'],
-                    $arguments
-                );
-
+            if(($index = array_search($route['action'][1], $action_methods)) === false){
+                return null;
             }
 
+            $action_method = $controller_class->getMethod($action_methods[$index]);
 
-        } catch (Exception $e) {
-            echo $e->getMessage();
-            return null;
+            $controller = Services::injectClass($route['action'][0]);
+
+            $result = Services::injectMethod([$controller, $action_method->name], $values);
+
+            //$parameters = $action_method->getParameters();
+
+            //$arguments = [];
+
+            //foreach($parameters as $param) {
+            //$arguments[] = isset($values[$param->getName()]) ?
+            //$values[$param->getName()] :
+            //Services::get($param->getClass()->getShortName());
+            //}
+
+            //fix_types($arguments);
+
+            //$result = call_user_func_array(
+            //array($controller, $action_method->name),
+            //$arguments
+            //);
+
+        } else if(is_callable($route['action'])) {
+
+            $result = Services::injectFunction($route['action'], $values);
+
+            //$action_method = new \ReflectionFunction($route['action']);
+            //$parameters = $action_method->getParameters();
+            //$arguments = [];
+
+            //foreach($parameters as $param) {
+            //$arguments[] = isset($values[$param->getName()]) ?
+            //$values[$param->getName()] :
+            //Services::get($param->getClass()->name);
+            //}
+
+            //fix_types($arguments);
+
+            //$result = call_user_func_array(
+            //$route['action'],
+            //$arguments
+            //);
+
         }
 
         if(!($result instanceof Response) &&

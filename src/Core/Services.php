@@ -34,30 +34,33 @@ class Services {
         return $service;
     }
 
-    public static function inject($class) {
+    public static function inject($class, $values = []) {
 
         if(is_callable($class))
-            return self::injectFunction($class);
+            return self::injectFunction($class, $values);
         if(is_array($class) && is_callable($class, true))
-            return self::injectMethod($class);
+            return self::injectMethod($class, $values);
         else
-            return self::injectClass($class);
+            return self::injectClass($class, $values);
     }
 
-    public static function injectMethod($fn) {
+    public static function injectMethod($fn, $values = []) {
         $rfn = new \ReflectionMethod($fn[0], $fn[1]);
-        $arguments = self::getArguments($rfn);
+        $arguments = self::getArguments($rfn, $values);
         return $rfn->invokeArgs($fn[0], $arguments);
     }
 
-    private static function getArguments($fn) {
+    private static function getArguments($fn, $values = []) {
         $arguments = [];
         if(!$fn) return $arguments;
         $parameters = $fn->getParameters();
         foreach($parameters as $param) {
-            $name = self::getClassName($param);
-            if(!$name) continue;
-            $arguments[] = self::get($name);
+            if(isset($values[$param->getName()])) {
+                $arguments[] = $values[$param->getName()];
+            } else {
+                $name = self::getClassName($param);
+                $arguments[] = self::get($name);
+            }
         }
         return $arguments;
     }
@@ -69,22 +72,17 @@ class Services {
         return isset($matches[1]) ? $matches[1] : null;
     }
 
-    public static function injectFunction($fn) {
-
+    public static function injectFunction($fn, $values = []) {
         $rfn = new \ReflectionFunction($fn);
-
-        $arguments = self::getArguments($rfn);
-
+        $arguments = self::getArguments($rfn, $values);
         return $rfn->invokeArgs($arguments);
     }
 
-    public static function injectClass($class) {
-        $class = new \ReflectionClass($class);
-        $fn = $class->getConstructor();
-
-        $arguments = self::getArguments($fn);
-
-        return $class->newInstanceArgs($arguments);
+    public static function injectClass($class, $values = []) {
+        $rclass = new \ReflectionClass($class);
+        $fn = $rclass->getConstructor();
+        $arguments = self::getArguments($fn, $values);
+        return $rclass->newInstanceArgs($arguments);
     }
 
     public static function inject_set($class) {

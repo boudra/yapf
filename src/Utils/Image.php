@@ -15,32 +15,32 @@ class Image {
 
     public function load_file($file)
     {
-	$ctx = stream_context_create(array('http'=>
-	    array(
-		'timeout' => 5, 
-	    )
-	));
+        $ctx = stream_context_create(array('http'=>
+            array(
+                'timeout' => 5, 
+            )
+        ));
         $data = file_get_contents($file, false, $ctx);
-        $this->image = imagecreatefromstring($data);
-        $this->file = file;
+        $this->image = \imagecreatefromstring($data);
+        $this->file = $file;
     }
 
     public function save($file = null, $type = null, $compression = 80, $permissions = null)
     {
         if(empty($file)) $file = $this->file;
-        
+
         switch($type) {
-            case IMAGETYPE_JPEG:
-		$this->image = imagejpeg($this->image, $file, $compression);
-		break;
-            case IMAGETYPE_GIF:
-		$this->image = imagegif($this->image, $file);
-		break;
-            case IMAGETYPE_PNG:
-		$this->image = imagepng($this->image, $file);
-		break;
-            default:
-		throw new Exception("File format not supported.");
+        case IMAGETYPE_JPEG:
+            $this->image = imagejpeg($this->image, $file, $compression);
+            break;
+        case IMAGETYPE_GIF:
+            $this->image = imagegif($this->image, $file);
+            break;
+        case IMAGETYPE_PNG:
+            $this->image = imagepng($this->image, $file);
+            break;
+        default:
+            throw new Exception("File format not supported.");
         }
 
         if($permissions !== null) {
@@ -58,7 +58,7 @@ class Image {
     } 
 
     public function resize_height($height) {
-     	$ratio = $height / $this->height();
+        $ratio = $height / $this->height();
         $width = round($this->width() * $ratio);
         $this->resize($width,$height);    
     }
@@ -75,8 +75,8 @@ class Image {
         imagealphablending($new_image, false);
         imagesavealpha($new_image, true);
         imagecopyresampled($new_image, $this->image, 0, 0, 0, 0,
-                           $width, $height,
-                           $this->width(), $this->height());
+            $width, $height,
+            $this->width(), $this->height());
         $this->image = $new_image;
     } 
 

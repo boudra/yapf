@@ -308,7 +308,7 @@ class Query {
         return $this->db->lastInsertId();
     }
 
-    public function fetch($mode = PDO::FETCH_ASSOC) {
+    public function fetch($mode = \PDO::FETCH_ASSOC) {
         if(strlen($this->sql) === 0) $this->build();
         $query = $this->db->prepare($this->sql);
         $query->execute($this->prepare_values);

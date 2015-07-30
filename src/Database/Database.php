@@ -3,6 +3,7 @@
 namespace App\Database;
 
 use App\Core\Config;
+use App\Core\Services;
 
 class Database {
 
@@ -19,6 +20,7 @@ class Database {
                     $config->db_user, $config->db_pwd,
                     array(\PDO::MYSQL_ATTR_INIT_COMMAND => $set_names));
 
+        Services::set($this->db);
 
     }
 
